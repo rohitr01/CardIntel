@@ -1,0 +1,101 @@
+// CardIntel — Fee Models
+// All monetary values use Decimal (never Float) — User req #8
+
+// ---------------------------------------------------------------------------
+// Fee — Individual fee record with effective dates
+// ---------------------------------------------------------------------------
+
+model Fee {
+  id              String      @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  feeType         FeeType
+  label           String?     // Human-readable label override
+
+  // Amount (currency-safe: Decimal)
+  amount          Decimal?    @db.Decimal(12, 2)  // Fixed amount in INR
+  percentage      Decimal?    @db.Decimal(5, 4)   // Percentage (e.g. 0.0250 = 2.50%)
+  minimumAmount   Decimal?    @db.Decimal(12, 2)
+  maximumAmount   Decimal?    @db.Decimal(12, 2)
+
+  // Tax
+  gstApplicable   Boolean     @default(false)
+
+  // Field state (User req #12)
+  fieldState      FieldState  @default(UNKNOWN)
+
+  // Effective dates (Addendum #11)
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
+
+  // Source provenance (Addendum #8)
+  sourceId        String?
+  source          Source?     @relation(fields: [sourceId], references: [id])
+
+  description     String?
+  metadata        Json?       // For unusual bank-specific conditions
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([cardProductId])
+  @@index([feeType])
+  @@index([cardProductId, feeType])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("fees")
+}
+
+// ---------------------------------------------------------------------------
+// FeeWaiver — Annual fee waiver conditions (Req #11)
+// ---------------------------------------------------------------------------
+
+model FeeWaiver {
+  id                  String        @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  waiverType          FeeWaiverType
+  waiverAvailable     Boolean       @default(false)
+  isLifetimeFree      Boolean       @default(false)
+
+  // Spend threshold
+  spendThreshold      Decimal?      @db.Decimal(12, 2)  // e.g. 200000.00 for ₹2,00,000
+  spendPeriod         String?       // "annual", "quarterly", etc.
+
+  // Conditions
+  conditions          String?       // Human-readable conditions
+  fieldState          FieldState    @default(UNKNOWN)
+
+  // Effective dates
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  // Source provenance
+  sourceId            String?
+  source              Source?       @relation(fields: [sourceId], references: [id])
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("fee_waivers")
+}
+
+// ---------------------------------------------------------------------------
+// TaxConfig — Configurable tax rates (Addendum #29, #76)
+// ---------------------------------------------------------------------------
+
+model TaxConfig {
+  id            String    @id @default(cuid())
+  taxType       String    @unique  // e.g. "GST"
+  rate          Decimal   @db.Decimal(5, 2) // e.g. 18.00 for 18%
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  description   String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("tax_configs")
+}

@@ -1,0 +1,248 @@
+// CardIntel — Source, Evidence & Claim Models
+// Implements: Raw Source → Extraction → Claim → Normalized Fact → Public View
+// (User req #4 — evidence layer between source and claim)
+
+// ---------------------------------------------------------------------------
+// Source — URL + type + publisher + dates + status
+// ---------------------------------------------------------------------------
+
+model Source {
+  id              String           @id @default(cuid())
+  url             String
+  title           String?
+  sourceType      SourceType
+  publisher       String?          // e.g. "HDFC Bank", "RBI"
+  publishedDate   DateTime?
+  effectiveDate   DateTime?
+
+  // Health
+  healthStatus    SourceHealthStatus @default(UNKNOWN)
+  lastCheckedAt   DateTime?
+  httpStatusCode  Int?
+
+  // Authority (configurable — Addendum #13)
+  authorityScore  Int?             // Computed from SourceAuthorityRule config
+
+  // Object storage reference (User req #14 — content outside PostgreSQL)
+  objectKey       String?          // S3/R2 key for stored content
+  contentHash     String?          // SHA-256 of content
+  mimeType        String?
+  contentSize     Int?             // bytes
+
+  // Issuer link
+  issuerId        String?
+  issuer          Issuer?          @relation(fields: [issuerId], references: [id])
+
+  metadata        Json?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  snapshots       SourceSnapshot[]
+  evidence        EvidenceRecord[]
+  claims          Claim[]
+
+  // Back-relations from entities with sourceId
+  fees                  Fee[]
+  feeWaivers            FeeWaiver[]
+  rewardPrograms        RewardProgram[]
+  rewardRules           RewardRule[]
+  rewardValuations      RewardValuation[]
+  cashbackRules         CashbackRule[]
+  milestoneBenefits     MilestoneBenefit[]
+  welcomeBenefits       WelcomeBenefit[]
+  redemptionOptions     RedemptionOption[]
+  transferPartners      TransferPartner[]
+  loungeBenefits        LoungeBenefit[]
+  travelBenefits        TravelBenefit[]
+  fuelBenefits          FuelBenefit[]
+  railwayBenefits       RailwayBenefit[]
+  hotelBenefits         HotelBenefit[]
+  forexBenefits         ForexBenefit[]
+  insuranceBenefits     InsuranceBenefit[]
+  upiBenefits           UPIBenefit[]
+  eligibilityRules      EligibilityRule[]
+  targetedEligibility   TargetedEligibility[]
+  applicationChannels   CardApplicationChannel[]
+  changeEvents          ChangeEvent[]
+  futureChanges         FutureChange[]
+  promotionalOffers     PromotionalOffer[]
+
+  @@index([sourceType])
+  @@index([issuerId])
+  @@index([healthStatus])
+  @@index([lastCheckedAt])
+  @@map("sources")
+}
+
+// ---------------------------------------------------------------------------
+// SourceSnapshot — Immutable content capture (Addendum #7)
+// ---------------------------------------------------------------------------
+
+model SourceSnapshot {
+  id              String   @id @default(cuid())
+  sourceId        String
+  source          Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Capture
+  pageTitle       String?
+  retrievedAt     DateTime @default(now())
+  contentHash     String   // SHA-256
+  documentVersion String?  // If the page has a version
+
+  // Content reference (large content in object storage)
+  objectKey       String?  // S3/R2 key
+  excerpt         String?  // Short excerpt for quick reference (stored in PG)
+
+  // Status
+  httpStatusCode  Int?
+  wasAccessible   Boolean  @default(true)
+
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+
+  evidence        EvidenceRecord[]
+
+  @@index([sourceId])
+  @@index([retrievedAt])
+  @@map("source_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// EvidenceRecord — Raw extracted evidence (User req #4)
+// Raw Source → Extraction → Evidence → Claim → Normalized Fact
+// ---------------------------------------------------------------------------
+
+model EvidenceRecord {
+  id                  String          @id @default(cuid())
+  sourceId            String
+  source              Source          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  snapshotId          String?
+  snapshot            SourceSnapshot? @relation(fields: [snapshotId], references: [id])
+
+  // Location in source
+  locator             String?         // CSS selector, PDF page, table row
+  pageSection         String?         // e.g. "Fees & Charges"
+  paragraph           String?         // Paragraph reference
+  tableReference      String?         // Table name/number
+
+  // Extracted content
+  extractedText       String          // The exact text extracted
+  extractedValue      String?         // Parsed/normalized value
+  extractedUnit       String?         // e.g. "INR", "percent", "visits"
+
+  // Extraction metadata
+  extractionModel     String?         // e.g. "gemini-3.6-flash", "manual"
+  extractionTimestamp  DateTime       @default(now())
+  extractionConfidence Decimal?       @db.Decimal(5, 2) // 0-100
+
+  metadata            Json?
+
+  createdAt           DateTime        @default(now())
+
+  claims              Claim[]
+
+  @@index([sourceId])
+  @@index([snapshotId])
+  @@map("evidence_records")
+}
+
+// ---------------------------------------------------------------------------
+// Claim — Entity + field + value + source + evidence (Addendum #9)
+// ---------------------------------------------------------------------------
+
+model Claim {
+  id                  String             @id @default(cuid())
+  cardProductId       String?
+  cardProduct         CardProduct?       @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  // What is being claimed
+  claimType           ClaimType
+  fieldName           String             // e.g. "annual_fee", "cashback_rate"
+  value               String             // The claimed value as string
+  unit                String?            // e.g. "INR", "percent", "visits"
+
+  // Source chain
+  sourceId            String
+  source              Source             @relation(fields: [sourceId], references: [id])
+  evidenceId          String?
+  evidence            EvidenceRecord?    @relation(fields: [evidenceId], references: [id])
+
+  // Effective dates
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  // Verification
+  confidence          ConfidenceLevel    @default(REVIEW)
+  verificationStatus  VerificationStatus @default(UNVERIFIED)
+  verifiedBy          String?            // Admin user ID
+  verifiedAt          DateTime?
+
+  // Conflict tracking
+  isActive            Boolean            @default(true)
+  supersededById      String?            // If this claim was replaced
+
+  metadata            Json?
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  conflictsA          ClaimConflict[]    @relation("ConflictClaimA")
+  conflictsB          ClaimConflict[]    @relation("ConflictClaimB")
+
+  @@index([cardProductId])
+  @@index([claimType])
+  @@index([fieldName])
+  @@index([verificationStatus])
+  @@index([cardProductId, fieldName])
+  @@index([isActive])
+  @@map("claims")
+}
+
+// ---------------------------------------------------------------------------
+// ClaimConflict — When two claims disagree (Addendum #10)
+// ---------------------------------------------------------------------------
+
+model ClaimConflict {
+  id              String         @id @default(cuid())
+  claimAId        String
+  claimA          Claim          @relation("ConflictClaimA", fields: [claimAId], references: [id])
+  claimBId        String
+  claimB          Claim          @relation("ConflictClaimB", fields: [claimBId], references: [id])
+
+  fieldName       String
+  valueA          String
+  valueB          String
+
+  conflictStatus  ConflictStatus @default(DETECTED)
+  resolvedClaimId String?        // Which claim was chosen
+  resolutionNotes String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([claimAId, claimBId])
+  @@index([conflictStatus])
+  @@map("claim_conflicts")
+}
+
+// ---------------------------------------------------------------------------
+// SourceAuthorityRule — Configurable priority (Addendum #13)
+// ---------------------------------------------------------------------------
+
+model SourceAuthorityRule {
+  id                  String   @id @default(cuid())
+  sourceType          String   @unique
+  authorityScore      Int      // 0-100
+  freshnessDecayDays  Int      // After this many days, score decays
+  description         String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("source_authority_rules")
+}

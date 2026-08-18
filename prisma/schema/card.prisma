@@ -1,0 +1,247 @@
+// CardIntel — Card Product & Variant Models
+// Product vs Variant separation (Addendum #5)
+
+// ---------------------------------------------------------------------------
+// Network
+// ---------------------------------------------------------------------------
+
+model Network {
+  id          String      @id @default(cuid())
+  name        String      // e.g. "Visa", "RuPay"
+  slug        String      @unique
+  type        NetworkType
+  logoUrl     String?
+  description String?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  cardProducts  CardProduct[]
+  cardVariants  CardVariant[]
+  upiApps       UPIApp[]
+
+  @@map("networks")
+}
+
+// ---------------------------------------------------------------------------
+// Category — Controlled card type taxonomy
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  slug        String          @unique
+  type        CardProductType
+  description String?
+  iconName    String?         // lucide icon name
+  displayOrder Int            @default(0)
+  isActive    Boolean         @default(true)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  cards       CardCategoryMap[]
+
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------------
+// CardProduct — Core card entity (Req #8)
+// ---------------------------------------------------------------------------
+
+model CardProduct {
+  id                    String              @id @default(cuid())
+  officialName          String
+  shortName             String?
+  slug                  String              @unique
+  description           String?
+
+  // Entity relationships (Legal issuer graph)
+  issuerId              String
+  issuer                Issuer              @relation(fields: [issuerId], references: [id])
+  brandId               String?
+  brand                 Brand?              @relation(fields: [brandId], references: [id])
+  platformId            String?
+  platform              Platform?           @relation(fields: [platformId], references: [id])
+  coBrandPartnerId      String?
+  coBrandPartner        CoBrandPartner?     @relation(fields: [coBrandPartnerId], references: [id])
+  networkId             String?
+  network               Network?            @relation(fields: [networkId], references: [id])
+
+  // Classification
+  consumerOrBusiness    ConsumerOrBusiness  @default(CONSUMER)
+  securedOrUnsecured    SecuredOrUnsecured  @default(UNSECURED)
+  physicalOrVirtual     PhysicalOrVirtual   @default(PHYSICAL)
+
+  // Lifecycle (state machine — Addendum #23)
+  status                CardStatus          @default(DISCOVERED)
+  isOpenForNewApplication   Boolean         @default(false)
+  isPubliclyMarketed        Boolean         @default(false)
+  isExistingCustomerOnly    Boolean         @default(false)
+  isDiscontinued            Boolean         @default(false)
+
+  // Dates
+  launchDate            DateTime?
+  discontinuedDate      DateTime?
+
+  // Official URLs
+  applicationUrl        String?
+  officialProductUrl    String?
+  officialFeeUrl        String?
+  termsUrl              String?
+  imageUrl              String?
+
+  // Product identifiers (Addendum #6 — internal only, for dedup)
+  productCode           String?
+  internalProductId     String?
+
+  // Verification
+  lastVerifiedAt        DateTime?
+  verificationStatus    VerificationStatus  @default(UNVERIFIED)
+  confidenceLevel       ConfidenceLevel     @default(REVIEW)
+
+  // Data quality scores (Req #33)
+  dataCompletenessScore Int?                // 0-100
+  sourceQualityScore    Int?                // 0-100
+  verificationScore     Int?                // 0-100
+  overallConfidence     Int?                // 0-100
+
+  // Best for / Not best for (User req #21)
+  bestFor               String[]            // e.g. ["UPI users", "frequent travelers"]
+  notIdealFor           String[]            // e.g. ["low spend", "international users"]
+
+  // PostgreSQL Full-Text Search
+  searchIndex           Unsupported("tsvector")?
+
+  // Variable metadata (JSONB — user req #5)
+  metadata              Json?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  deletedAt             DateTime?
+
+  // Relations
+  categories            CardCategoryMap[]
+  variants              CardVariant[]
+  fees                  Fee[]
+  feeWaivers            FeeWaiver[]
+  rewardPrograms        RewardProgram[]
+  rewardRules           RewardRule[]
+  cashbackRules         CashbackRule[]
+  milestoneBenefits     MilestoneBenefit[]
+  welcomeBenefits       WelcomeBenefit[]
+  redemptionOptions     RedemptionOption[]
+  transferPartners      TransferPartner[]
+  loungeBenefits        LoungeBenefit[]
+  travelBenefits        TravelBenefit[]
+  fuelBenefits          FuelBenefit[]
+  railwayBenefits       RailwayBenefit[]
+  hotelBenefits         HotelBenefit[]
+  forexBenefits         ForexBenefit[]
+  insuranceBenefits     InsuranceBenefit[]
+  upiBenefits           UPIBenefit[]
+  eligibilityRules      EligibilityRule[]
+  targetedEligibility   TargetedEligibility[]
+  applicationChannels   CardApplicationChannel[]
+  claims                Claim[]
+  changeEvents          ChangeEvent[]
+  futureChanges         FutureChange[]
+  promotionalOffers     PromotionalOffer[]
+  duplicateCandidatesA  DuplicateCandidate[] @relation("DuplicateA")
+  duplicateCandidatesB  DuplicateCandidate[] @relation("DuplicateB")
+  userFavorites         UserFavorite[]
+  applicationTracking   ApplicationTracking[]
+  calculationSnapshots  CalculationSnapshot[]
+
+  @@index([issuerId])
+  @@index([brandId])
+  @@index([platformId])
+  @@index([coBrandPartnerId])
+  @@index([networkId])
+  @@index([status])
+  @@index([consumerOrBusiness])
+  @@index([securedOrUnsecured])
+  @@index([verificationStatus])
+  @@index([lastVerifiedAt])
+  @@index([deletedAt])
+  @@index([slug])
+  // Composite indexes for common filter combos
+  @@index([status, issuerId])
+  @@index([status, networkId])
+  @@index([status, consumerOrBusiness])
+  @@map("card_products")
+}
+
+// ---------------------------------------------------------------------------
+// CardVariant — Network/Acquisition/Campaign variants (Addendum #5)
+// ---------------------------------------------------------------------------
+
+model CardVariant {
+  id              String      @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+  name            String      // e.g. "Visa variant", "FIFA 2026 edition"
+  variantType     VariantType
+  networkId       String?
+  network         Network?    @relation(fields: [networkId], references: [id])
+
+  // Only create separate variant when these materially differ
+  feesDiffer      Boolean     @default(false)
+  rewardsDiffer   Boolean     @default(false)
+  eligibilityDiffers Boolean  @default(false)
+  benefitsDiffer  Boolean     @default(false)
+
+  isActive        Boolean     @default(true)
+  description     String?
+  metadata        Json?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([cardProductId])
+  @@index([networkId])
+  @@map("card_variants")
+}
+
+// ---------------------------------------------------------------------------
+// CardCategoryMap — M2M: Card ↔ Category
+// ---------------------------------------------------------------------------
+
+model CardCategoryMap {
+  id            String      @id @default(cuid())
+  cardProductId String
+  cardProduct   CardProduct @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  isPrimary     Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+
+  @@unique([cardProductId, categoryId])
+  @@index([cardProductId])
+  @@index([categoryId])
+  @@map("card_category_map")
+}
+
+// ---------------------------------------------------------------------------
+// CardApplicationChannel — Per-channel application URLs (Addendum #16)
+// ---------------------------------------------------------------------------
+
+model CardApplicationChannel {
+  id              String             @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct        @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+  channel         ApplicationChannel
+  url             String?
+  isActive        Boolean            @default(true)
+  lastVerifiedAt  DateTime?
+  sourceId        String?
+  source          Source?            @relation(fields: [sourceId], references: [id])
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([cardProductId, channel])
+  @@index([cardProductId])
+  @@map("card_application_channels")
+}

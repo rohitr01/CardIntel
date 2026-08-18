@@ -1,0 +1,11 @@
+// CardIntel — Main Prisma Schema Configuration
+// Uses multi-file schema (GA since Prisma 6.7.0)
+// Connection config is in prisma.config.ts (Prisma 7+ requirement)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

@@ -1,0 +1,80 @@
+// CardIntel — UPI Ecosystem Models (Addendum #3)
+
+// ---------------------------------------------------------------------------
+// UPIApp — UPI application details
+// ---------------------------------------------------------------------------
+
+model UPIApp {
+  id                  String    @id @default(cuid())
+  name                String    // e.g. "Google Pay", "PhonePe", "BHIM"
+  slug                String    @unique
+  supportedNetworkId  String?
+  supportedNetwork    Network?  @relation(fields: [supportedNetworkId], references: [id])
+  issuerId            String?
+  issuer              Issuer?   @relation(fields: [issuerId], references: [id])
+  logoUrl             String?
+  websiteUrl          String?
+  appStoreUrl         String?
+  playStoreUrl        String?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  cardEligibility     UPICardEligibility[]
+  restrictions        UPIRestriction[]
+
+  @@map("upi_apps")
+}
+
+// ---------------------------------------------------------------------------
+// UPICardEligibility — Which cards work with which UPI apps
+// ---------------------------------------------------------------------------
+
+model UPICardEligibility {
+  id                        String    @id @default(cuid())
+  upiAppId                  String
+  upiApp                    UPIApp    @relation(fields: [upiAppId], references: [id], onDelete: Cascade)
+
+  // Card matching (can be by issuer, network, or specific card)
+  issuerName                String?
+  networkType               NetworkType?
+  cardProductSlug           String?
+
+  linkingSupported          Boolean   @default(false)
+  merchantPaymentsSupported Boolean   @default(false)
+  p2pAllowed                Boolean   @default(false)
+  cashWithdrawalAllowed     Boolean   @default(false)
+
+  lastVerifiedAt            DateTime?
+  sourceUrl                 String?
+
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@index([upiAppId])
+  @@map("upi_card_eligibility")
+}
+
+// ---------------------------------------------------------------------------
+// UPIRestriction — Category/MCC restrictions per UPI app
+// ---------------------------------------------------------------------------
+
+model UPIRestriction {
+  id                  String    @id @default(cuid())
+  upiAppId            String
+  upiApp              UPIApp    @relation(fields: [upiAppId], references: [id], onDelete: Cascade)
+
+  restrictionType     String    // "category", "mcc", "amount"
+  restrictedCategory  String?
+  mccCode             String?
+  maxTransactionAmount Decimal? @db.Decimal(12, 2)
+  description         String?
+
+  lastVerifiedAt      DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([upiAppId])
+  @@map("upi_restrictions")
+}

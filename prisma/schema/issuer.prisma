@@ -1,0 +1,192 @@
+// CardIntel — Issuer & Entity Models
+// Legal issuer graph: Issuer → Brand → Platform → CoBrandPartner
+
+// ---------------------------------------------------------------------------
+// Issuer — The legal entity that issues credit cards
+// ---------------------------------------------------------------------------
+
+model Issuer {
+  id                  String   @id @default(cuid())
+  name                String   // Legal entity name
+  shortName           String?  // Display name
+  slug                String   @unique
+  logoUrl             String?
+  websiteUrl          String?
+  cardPageUrl         String?
+  feePageUrl          String?
+  termsPageUrl        String?
+  applicationPageUrl  String?
+
+  // Regulatory classification (Addendum #1)
+  issuerType          IssuerType
+  regulatoryStatus    RegulatoryStatus       @default(UNKNOWN)
+  canIssueCreditCards          Boolean        @default(false)
+  canIssueBusinessCards        Boolean        @default(false)
+  canIssueCoBrandedCards       Boolean        @default(false)
+  canIssueSecuredCards         Boolean        @default(false)
+  rbiRegulatedEntity          Boolean        @default(false)
+  rbiRegistrationReference    String?
+  legalEntityName             String?
+  cin                         String?        // Corporate Identity Number
+  rbiCategory                 String?
+
+  // Research coverage (Req #51)
+  coverageStatus      IssuerCoverageStatus   @default(NOT_STARTED)
+  lastResearchedAt    DateTime?
+  coveragePercent     Int                    @default(0) // 0-100
+
+  // Metadata
+  description         String?
+  headquartersCity    String?
+  foundedYear         Int?
+  metadata            Json?     // Variable issuer-specific data (JSONB)
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  cards               CardProduct[]
+  brands              Brand[]
+  platforms           Platform[]
+  relationshipsFrom   BankRelationship[]  @relation("RelationFrom")
+  relationshipsTo     BankRelationship[]  @relation("RelationTo")
+  sources             Source[]
+  researchJobs        ResearchJob[]
+  researchChecklist   IssuerResearchChecklist?
+  upiApps             UPIApp[]
+
+  @@index([issuerType])
+  @@index([slug])
+  @@index([coverageStatus])
+  @@index([deletedAt])
+  @@map("issuers")
+}
+
+// ---------------------------------------------------------------------------
+// Brand — Marketing brand (may differ from legal issuer)
+// ---------------------------------------------------------------------------
+
+model Brand {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  websiteUrl  String?
+  issuerId    String?  // The legal issuer behind this brand
+  issuer      Issuer?  @relation(fields: [issuerId], references: [id])
+  description String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards       CardProduct[]
+
+  @@index([issuerId])
+  @@map("brands")
+}
+
+// ---------------------------------------------------------------------------
+// Platform — App/fintech platform (OneCard, Slice, etc.)
+// ---------------------------------------------------------------------------
+
+model Platform {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  websiteUrl  String?
+  appUrl      String?
+  issuerId    String?  // Underlying bank partner
+  issuer      Issuer?  @relation(fields: [issuerId], references: [id])
+  description String?
+  isFintech   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards       CardProduct[]
+
+  @@index([issuerId])
+  @@map("platforms")
+}
+
+// ---------------------------------------------------------------------------
+// Co-Brand Partner — Amazon, Flipkart, IRCTC, airlines, etc.
+// ---------------------------------------------------------------------------
+
+model CoBrandPartner {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  websiteUrl  String?
+  industry    String?
+  description String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards       CardProduct[]
+
+  @@map("co_brand_partners")
+}
+
+// ---------------------------------------------------------------------------
+// Bank Relationship Graph (Addendum #2)
+// ---------------------------------------------------------------------------
+
+model BankRelationship {
+  id               String                 @id @default(cuid())
+  fromEntityId     String
+  fromEntity       Issuer                 @relation("RelationFrom", fields: [fromEntityId], references: [id])
+  toEntityId       String
+  toEntity         Issuer                 @relation("RelationTo", fields: [toEntityId], references: [id])
+  relationshipType EntityRelationshipType
+  description      String?
+  isActive         Boolean                @default(true)
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@unique([fromEntityId, toEntityId, relationshipType])
+  @@index([fromEntityId])
+  @@index([toEntityId])
+  @@map("bank_relationships")
+}
+
+// ---------------------------------------------------------------------------
+// Issuer Research Checklist (Req #58)
+// ---------------------------------------------------------------------------
+
+model IssuerResearchChecklist {
+  id                      String   @id @default(cuid())
+  issuerId                String   @unique
+  issuer                  Issuer   @relation(fields: [issuerId], references: [id])
+
+  websiteChecked          Boolean  @default(false)
+  productCatalogueChecked Boolean  @default(false)
+  feesChecked             Boolean  @default(false)
+  termsChecked            Boolean  @default(false)
+  mitcChecked             Boolean  @default(false)
+  applicationPagesChecked Boolean  @default(false)
+  coBrandPagesChecked     Boolean  @default(false)
+  businessCardsChecked    Boolean  @default(false)
+  securedCardsChecked     Boolean  @default(false)
+  rupayUpiChecked         Boolean  @default(false)
+  discontinuedChecked     Boolean  @default(false)
+  annualReportChecked     Boolean  @default(false)
+  investorPresChecked     Boolean  @default(false)
+
+  cardsDiscovered         Int      @default(0)
+  cardsVerified           Int      @default(0)
+  cardsNeedingReview      Int      @default(0)
+
+  lastCheckedAt           DateTime?
+  notes                   String?
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("issuer_research_checklists")
+}

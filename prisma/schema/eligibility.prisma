@@ -1,0 +1,85 @@
+// CardIntel — Eligibility Models (Req #22)
+
+// ---------------------------------------------------------------------------
+// EligibilityRule
+// ---------------------------------------------------------------------------
+
+model EligibilityRule {
+  id                  String          @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct     @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  // Age
+  minimumAge          Int?
+  maximumAge          Int?
+
+  // Income (Decimal for currency safety)
+  minimumMonthlyIncome  Decimal?      @db.Decimal(12, 2)
+  minimumAnnualIncome   Decimal?      @db.Decimal(12, 2)
+  incomeFieldState      FieldState    @default(UNKNOWN)
+
+  // Employment
+  employmentTypes     EmploymentType[]
+
+  // Location
+  cityRequirement     String[]        // Specific cities, or empty = all India
+  isNRIEligible       Boolean?
+
+  // Credit
+  minimumCreditScore  Int?            // CIBIL
+  creditScoreFieldState FieldState    @default(UNKNOWN)
+
+  // FD / Security (for secured cards)
+  fdRequired          Boolean         @default(false)
+  fdMinimumAmount     Decimal?        @db.Decimal(12, 2)
+  securityDescription String?
+
+  // Relationship
+  existingBankRelationship Boolean    @default(false)
+  relationshipDetails String?
+
+  // KYC
+  kycRequirements     String[]
+  documentsRequired   String[]
+
+  // Notes
+  notes               String?         // Additional conditions
+
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  sourceId            String?
+  source              Source?         @relation(fields: [sourceId], references: [id])
+  fieldState          FieldState      @default(UNKNOWN)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([cardProductId])
+  @@map("eligibility_rules")
+}
+
+// ---------------------------------------------------------------------------
+// TargetedEligibility — Scope/segment (Addendum #15)
+// ---------------------------------------------------------------------------
+
+model TargetedEligibility {
+  id                  String        @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  eligibilityScope    String        // "public", "existing_customers", "pre_approved", "salary_account", "wealth"
+  isPublic            Boolean       @default(true)
+  channel             String?       // e.g. "bank_app", "branch"
+  customerSegment     String?       // e.g. "salary_account", "imperia", "privy_league"
+  description         String?
+
+  sourceId            String?
+  source              Source?       @relation(fields: [sourceId], references: [id])
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("targeted_eligibility")
+}

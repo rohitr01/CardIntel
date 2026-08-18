@@ -1,0 +1,459 @@
+// CardIntel — User, Admin, Research, AI & Analytics Models
+
+// ---------------------------------------------------------------------------
+// User (Auth.js compatible)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Admin role
+  role          AdminRole @default(VIEWER)
+  isAdmin       Boolean   @default(false)
+  isAllowlisted Boolean   @default(false) // Admin allowlist
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  favorites     UserFavorite[]
+  comparisons   UserComparison[]
+  applications  ApplicationTracking[]
+  preferences   UserPreference?
+
+  @@map("users")
+}
+
+// Auth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// UserPreference — Spending profile
+// ---------------------------------------------------------------------------
+
+model UserPreference {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Spending profile (all Decimal for currency safety)
+  monthlySpend        Decimal? @db.Decimal(12, 2)
+  annualSpend         Decimal? @db.Decimal(12, 2)
+
+  // Category breakdown
+  onlineShoppingSpend Decimal? @db.Decimal(12, 2)
+  offlineSpend        Decimal? @db.Decimal(12, 2)
+  grocerySpend        Decimal? @db.Decimal(12, 2)
+  fuelSpend           Decimal? @db.Decimal(12, 2)
+  diningSpend         Decimal? @db.Decimal(12, 2)
+  foodDeliverySpend   Decimal? @db.Decimal(12, 2)
+  travelSpend         Decimal? @db.Decimal(12, 2)
+  upiSpend            Decimal? @db.Decimal(12, 2)
+  utilitySpend        Decimal? @db.Decimal(12, 2)
+  internationalSpend  Decimal? @db.Decimal(12, 2)
+  rentSpend           Decimal? @db.Decimal(12, 2)
+  entertainmentSpend  Decimal? @db.Decimal(12, 2)
+
+  // Profile
+  monthlyIncome       Decimal? @db.Decimal(12, 2)
+  annualIncome        Decimal? @db.Decimal(12, 2)
+  employmentType      EmploymentType?
+  age                 Int?
+  city                String?
+  existingBank        String?
+  cibilRange          String?  // e.g. "750-800"
+  fdAvailable         Decimal? @db.Decimal(12, 2)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+// ---------------------------------------------------------------------------
+// UserFavorite
+// ---------------------------------------------------------------------------
+
+model UserFavorite {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardProductId String
+  cardProduct   CardProduct @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, cardProductId])
+  @@index([userId])
+  @@map("user_favorites")
+}
+
+// ---------------------------------------------------------------------------
+// UserComparison — Saved comparison sets
+// ---------------------------------------------------------------------------
+
+model UserComparison {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String?
+  cardSlugs String[] // Up to 5 card slugs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_comparisons")
+}
+
+// ---------------------------------------------------------------------------
+// ApplicationTracking (Req #45) — No sensitive financial data
+// ---------------------------------------------------------------------------
+
+model ApplicationTracking {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardProductId   String
+  cardProduct     CardProduct @relation(fields: [cardProductId], references: [id])
+
+  status          String      @default("INTERESTED") // INTERESTED, APPLIED, UNDER_REVIEW, APPROVED, REJECTED, RECEIVED
+  appliedDate     DateTime?
+  channel         String?
+  referenceNumber String?     // User-provided, optional
+  notes           String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([cardProductId])
+  @@map("application_tracking")
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog — All admin actions logged
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  entityName  String      // e.g. "CardProduct", "Fee", "Issuer"
+  entityId    String
+  action      AuditAction
+  oldValues   Json?
+  newValues   Json?
+  actorId     String?     // User ID who performed the action
+  actorEmail  String?
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime    @default(now())
+
+  @@index([entityName, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// ResearchJob — Job queue for research tasks (Req #71)
+// ---------------------------------------------------------------------------
+
+model ResearchJob {
+  id            String            @id @default(cuid())
+  jobType       ResearchJobType
+  status        ResearchJobStatus @default(QUEUED)
+
+  // Target
+  issuerId      String?
+  issuer        Issuer?           @relation(fields: [issuerId], references: [id])
+  targetUrl     String?
+  targetEntity  String?           // e.g. card slug
+
+  // Execution
+  startedAt     DateTime?
+  completedAt   DateTime?
+  failedAt      DateTime?
+  retryCount    Int               @default(0)
+  maxRetries    Int               @default(3)
+  errorMessage  String?
+
+  // Output
+  resultSummary String?
+  resultData    Json?
+
+  // Trigger.dev reference
+  triggerJobId  String?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([jobType])
+  @@index([status])
+  @@index([issuerId])
+  @@index([createdAt])
+  @@map("research_jobs")
+}
+
+// ---------------------------------------------------------------------------
+// DuplicateCandidate — Potential duplicate pairs (Req #52)
+// ---------------------------------------------------------------------------
+
+model DuplicateCandidate {
+  id            String      @id @default(cuid())
+  cardAId       String
+  cardA         CardProduct @relation("DuplicateA", fields: [cardAId], references: [id])
+  cardBId       String
+  cardB         CardProduct @relation("DuplicateB", fields: [cardBId], references: [id])
+
+  similarityScore Decimal   @db.Decimal(5, 2) // 0-100
+  matchReasons  String[]    // e.g. ["same_issuer", "similar_name", "same_fee"]
+  isResolved    Boolean     @default(false)
+  resolution    String?     // "merged", "not_duplicate", "kept_both"
+  resolvedBy    String?
+  resolvedAt    DateTime?
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([cardAId, cardBId])
+  @@index([isResolved])
+  @@map("duplicate_candidates")
+}
+
+// ---------------------------------------------------------------------------
+// ProductExclusion — What is NOT a credit card (Addendum #65)
+// ---------------------------------------------------------------------------
+
+model ProductExclusion {
+  id              String            @id @default(cuid())
+  category        ExclusionCategory
+  productName     String
+  issuerName      String?
+  reason          String
+  sourceUrl       String?
+  dateVerified    DateTime?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("product_exclusions")
+}
+
+// ---------------------------------------------------------------------------
+// Synonym — Search synonym dictionary (Addendum #35)
+// ---------------------------------------------------------------------------
+
+model Synonym {
+  id          String   @id @default(cuid())
+  term        String   // e.g. "Swiggy"
+  synonyms    String[] // e.g. ["food delivery", "food ordering"]
+  category    String?  // e.g. "merchant", "category", "abbreviation"
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([term])
+  @@map("synonyms")
+}
+
+// ---------------------------------------------------------------------------
+// MerchantCategory — MCC/merchant classification (Addendum #23)
+// ---------------------------------------------------------------------------
+
+model MerchantCategory {
+  id                  String   @id @default(cuid())
+  merchantName        String?
+  mccCode             String?
+  category            String   // Normalized category
+  issuerClassification String? // How a specific issuer classifies it
+  platform            String?  // e.g. "online", "offline"
+  isEligibleForReward Boolean  @default(true)
+  isExcludedFromReward Boolean @default(false)
+  description         String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([mccCode])
+  @@index([merchantName])
+  @@index([category])
+  @@map("merchant_categories")
+}
+
+// ---------------------------------------------------------------------------
+// CalculationSnapshot — Immutable calculation records (User req #9)
+// ---------------------------------------------------------------------------
+
+model CalculationSnapshot {
+  id                  String      @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct @relation(fields: [cardProductId], references: [id])
+
+  calculationType     String      // "recommendation", "reward_calculator"
+  userInput           Json        // The spending profile used
+  rulesetVersion      String?     // Version of reward rules applied
+  valuationVersion    String?     // Version of valuation model
+  feeVersion          String?     // Version of fee data
+
+  result              Json        // Full calculation result
+  calculatedAt        DateTime    @default(now())
+
+  @@index([cardProductId])
+  @@index([calculatedAt])
+  @@map("calculation_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// AIUsage — AI cost tracking (User req #18)
+// ---------------------------------------------------------------------------
+
+model AIUsage {
+  id              String      @id @default(cuid())
+  provider        String      // "google", "anthropic", "openai"
+  model           String      // "gemini-3.6-flash", "claude-opus-4.6"
+  taskType        AITaskType
+  inputTokens     Int?
+  outputTokens    Int?
+  estimatedCost   Decimal?    @db.Decimal(10, 6) // USD
+  latencyMs       Int?
+  success         Boolean     @default(true)
+  errorMessage    String?
+  jobId           String?     // Reference to ResearchJob
+  metadata        Json?
+
+  createdAt       DateTime    @default(now())
+
+  @@index([taskType])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("ai_usage")
+}
+
+// ---------------------------------------------------------------------------
+// AIModelConfig — Model routing (User req #17)
+// ---------------------------------------------------------------------------
+
+model AIModelConfig {
+  id              String      @id @default(cuid())
+  taskType        AITaskType  @unique
+  primaryProvider String      // "google", "anthropic"
+  primaryModel    String      // "gemini-3.6-flash"
+  fallbackProvider String?
+  fallbackModel   String?
+  fallback2Provider String?
+  fallback2Model  String?
+  maxRetries      Int         @default(3)
+  timeoutMs       Int         @default(30000)
+  isActive        Boolean     @default(true)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("ai_model_configs")
+}
+
+// ---------------------------------------------------------------------------
+// AffiliateConfig — Affiliate link management (Req #42)
+// ---------------------------------------------------------------------------
+
+model AffiliateConfig {
+  id              String    @id @default(cuid())
+  partnerName     String
+  affiliateUrl    String
+  trackingUrl     String?
+  commission      Decimal?  @db.Decimal(8, 2)
+  commissionType  String?   // "fixed", "percentage"
+  isActive        Boolean   @default(true)
+  disclosureText  String?
+  cardProductSlug String?   // Link to specific card
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([cardProductSlug])
+  @@map("affiliate_configs")
+}
+
+// ---------------------------------------------------------------------------
+// SearchQuery — Search analytics (Addendum #53)
+// ---------------------------------------------------------------------------
+
+model SearchQuery {
+  id          String   @id @default(cuid())
+  query       String
+  resultCount Int?
+  filters     Json?    // Applied filters
+  sessionId   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("search_queries")
+}
+
+// ---------------------------------------------------------------------------
+// RegulatoryNotice — RBI/NPCI/CCPA notices (Addendum #30)
+// ---------------------------------------------------------------------------
+
+model RegulatoryNotice {
+  id              String    @id @default(cuid())
+  authority       String    // "RBI", "NPCI", "CCPA"
+  title           String
+  referenceNumber String?
+  publishedDate   DateTime?
+  effectiveDate   DateTime?
+  summary         String?
+  url             String?
+  affectsArea     String[]  // e.g. ["credit_card_issuance", "UPI", "fees"]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([authority])
+  @@index([publishedDate])
+  @@map("regulatory_notices")
+}

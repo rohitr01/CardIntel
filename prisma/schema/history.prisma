@@ -1,0 +1,109 @@
+// CardIntel — History, Change Detection & Promotional Offer Models
+// Never delete old data — version everything (Req #35, Addendum #11-14)
+
+// ---------------------------------------------------------------------------
+// ChangeEvent — Field-level change detection (Req #31, Addendum #13)
+// ---------------------------------------------------------------------------
+
+model ChangeEvent {
+  id              String          @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct     @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  changeType      ChangeEventType
+  fieldName       String          // e.g. "annual_fee", "lounge_visits"
+  oldValue        String?
+  newValue        String?
+  changeDate      DateTime        @default(now())
+
+  // Significance
+  isHighRisk      Boolean         @default(false) // Requires human approval
+  isPublished     Boolean         @default(false) // Shown on public changelog
+
+  // Source
+  sourceId        String?
+  source          Source?         @relation(fields: [sourceId], references: [id])
+
+  // Approval
+  approvedBy      String?
+  approvedAt      DateTime?
+  notes           String?
+
+  createdAt       DateTime        @default(now())
+
+  @@index([cardProductId])
+  @@index([changeType])
+  @@index([changeDate])
+  @@index([isPublished])
+  @@index([cardProductId, changeType])
+  @@map("change_events")
+}
+
+// ---------------------------------------------------------------------------
+// FutureChange — Announced but not yet effective (Addendum #12)
+// ---------------------------------------------------------------------------
+
+model FutureChange {
+  id              String        @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  fieldName       String
+  currentValue    String?
+  futureValue     String
+  effectiveDate   DateTime
+
+  // Source
+  sourceId        String?
+  source          Source?       @relation(fields: [sourceId], references: [id])
+
+  isApplied       Boolean       @default(false)
+  appliedAt       DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@index([effectiveDate])
+  @@index([isApplied])
+  @@map("future_changes")
+}
+
+// ---------------------------------------------------------------------------
+// PromotionalOffer — Temporary offers separate from base product (Addendum #14)
+// ---------------------------------------------------------------------------
+
+model PromotionalOffer {
+  id              String      @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  offerType       OfferType
+  title           String
+  description     String
+  conditions      String?
+
+  // Value
+  offerValue      Decimal?    @db.Decimal(12, 2)
+  offerPercentage Decimal?    @db.Decimal(5, 2)
+
+  // Dates
+  startDate       DateTime?
+  endDate         DateTime?
+  isCurrentlyActive Boolean   @default(true)
+
+  // Targeting (Addendum #15)
+  isPublic        Boolean     @default(true)
+  targetSegment   String?
+
+  sourceId        String?
+  source          Source?     @relation(fields: [sourceId], references: [id])
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([cardProductId])
+  @@index([isCurrentlyActive])
+  @@index([endDate])
+  @@map("promotional_offers")
+}

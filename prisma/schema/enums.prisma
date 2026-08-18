@@ -1,0 +1,558 @@
+// CardIntel — Prisma Enums
+// All controlled vocabularies as database-level enums
+
+// ---------------------------------------------------------------------------
+// Card Lifecycle
+// ---------------------------------------------------------------------------
+
+enum CardStatus {
+  DISCOVERED
+  UNDER_RESEARCH
+  VERIFIED
+  ACTIVE
+  INVITE_ONLY
+  RELATIONSHIP_ONLY
+  EXISTING_CUSTOMERS_ONLY
+  TEMPORARILY_UNAVAILABLE
+  LIMITED_AVAILABILITY
+  DISCONTINUED
+  RELAUNCHED
+  LEGACY
+  UNKNOWN
+}
+
+// ---------------------------------------------------------------------------
+// Issuer & Entity
+// ---------------------------------------------------------------------------
+
+enum IssuerType {
+  BANK
+  SMALL_FINANCE_BANK
+  FOREIGN_BANK
+  NBFC
+  PAYMENT_BANK
+  COOPERATIVE_BANK
+  FINTECH
+  MARKETPLACE
+  APP
+  PROGRAM_MANAGER
+  OTHER
+}
+
+enum RegulatoryStatus {
+  RBI_REGULATED
+  RBI_REGISTERED
+  NOT_REGULATED
+  UNKNOWN
+}
+
+enum EntityRelationshipType {
+  LEGAL_ISSUER
+  BRAND
+  PLATFORM
+  CO_BRAND_PARTNER
+  LENDING_PARTNER
+  PROGRAM_MANAGER
+  UPI_APP
+}
+
+// ---------------------------------------------------------------------------
+// Card Classification
+// ---------------------------------------------------------------------------
+
+enum CardProductType {
+  STANDARD
+  CASHBACK
+  REWARDS
+  TRAVEL
+  AIRLINE
+  HOTEL
+  FUEL
+  SHOPPING
+  DINING
+  RAILWAY
+  FOREX
+  PREMIUM
+  SUPER_PREMIUM
+  METAL
+  UPI
+  SECURED
+  FD_BACKED
+  BUSINESS
+  CORPORATE
+  SALARY
+  DEFENCE
+  STUDENT
+  ENTRY_LEVEL
+  LIFESTYLE
+  ENTERTAINMENT
+  CO_BRANDED
+  FINTECH
+  VIRTUAL
+  OTHER
+}
+
+enum ConsumerOrBusiness {
+  CONSUMER
+  BUSINESS
+  CORPORATE
+  BOTH
+}
+
+enum SecuredOrUnsecured {
+  SECURED
+  UNSECURED
+}
+
+enum PhysicalOrVirtual {
+  PHYSICAL
+  VIRTUAL
+  BOTH
+}
+
+enum VariantType {
+  NETWORK
+  ACQUISITION
+  CAMPAIGN
+}
+
+// ---------------------------------------------------------------------------
+// Network
+// ---------------------------------------------------------------------------
+
+enum NetworkType {
+  RUPAY
+  VISA
+  MASTERCARD
+  AMEX
+  DINERS
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Fee
+// ---------------------------------------------------------------------------
+
+enum FeeType {
+  JOINING
+  ANNUAL
+  RENEWAL
+  ADDITIONAL_CARD
+  CASH_ADVANCE
+  CASH_PROCESSING
+  FOREIGN_CURRENCY_MARKUP
+  DYNAMIC_CURRENCY_CONVERSION
+  RENT_TRANSACTION
+  EDUCATION_TRANSACTION
+  WALLET_LOAD
+  FUEL_SURCHARGE
+  BALANCE_TRANSFER
+  EMI_PROCESSING
+  LATE_PAYMENT
+  OVERLIMIT
+  CASH_WITHDRAWAL
+  REWARD_REVERSAL
+  INTERNATIONAL_TRANSACTION
+  GST
+  STATEMENT
+  CARD_REPLACEMENT
+  CHEQUE_BOUNCE
+  OTHER
+}
+
+enum FeeWaiverType {
+  SPEND_BASED
+  RELATIONSHIP_BASED
+  PROMOTIONAL
+  LIFETIME_FREE
+  CONDITIONAL
+  NONE
+}
+
+// ---------------------------------------------------------------------------
+// Rewards & Cashback
+// ---------------------------------------------------------------------------
+
+enum RewardCurrencyType {
+  REWARD_POINTS
+  CASHBACK
+  MILES
+  AIRLINE_MILES
+  HOTEL_POINTS
+  COINS
+  VOUCHERS
+  STATEMENT_CREDIT
+  UPI_REWARDS
+  MERCHANT_SPECIFIC
+}
+
+enum RedemptionType {
+  VOUCHER
+  STATEMENT_CREDIT
+  TRAVEL
+  AIRLINE_TRANSFER
+  HOTEL_TRANSFER
+  MERCHANDISE
+  CASHBACK
+  UPI_CASHBACK
+  GIFT_CARD
+  OTHER
+}
+
+enum SpendCategory {
+  ONLINE
+  OFFLINE
+  GROCERY
+  FUEL
+  DINING
+  FOOD_DELIVERY
+  TRAVEL
+  FLIGHTS
+  HOTELS
+  RAILWAY
+  ENTERTAINMENT
+  SUBSCRIPTIONS
+  SHOPPING
+  FASHION
+  ELECTRONICS
+  UTILITIES
+  INSURANCE
+  EDUCATION
+  RENT
+  WALLET
+  UPI
+  EMI
+  INTERNATIONAL
+  AMAZON
+  FLIPKART
+  MYNTRA
+  SWIGGY
+  ZOMATO
+  PHARMACY
+  GOVERNMENT
+  TELECOM
+  ALL
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Source & Verification
+// ---------------------------------------------------------------------------
+
+enum SourceType {
+  OFFICIAL_BANK_PAGE
+  OFFICIAL_FEE_SCHEDULE
+  OFFICIAL_TERMS
+  OFFICIAL_MITC
+  OFFICIAL_APPLICATION_PAGE
+  RBI
+  NPCI
+  ANNUAL_REPORT
+  INVESTOR_PRESENTATION
+  SECONDARY_REPUTABLE_SOURCE
+  REGULATORY_NOTICE
+  EXTERNAL_DATABASE
+}
+
+enum VerificationStatus {
+  VERIFIED
+  UNVERIFIED
+  PENDING_REVIEW
+  CONFLICT_REQUIRES_REVIEW
+  STALE
+  REJECTED
+}
+
+enum SourceHealthStatus {
+  ACTIVE
+  HTTP_ERROR
+  REDIRECT
+  REMOVED
+  LOGIN_REQUIRED
+  BLOCKED
+  UNKNOWN
+}
+
+// ---------------------------------------------------------------------------
+// Field State & Data Quality
+// ---------------------------------------------------------------------------
+
+enum FieldState {
+  KNOWN
+  NOT_DISCLOSED
+  NOT_APPLICABLE
+  CONDITIONAL
+  CONFLICTING
+  PENDING_VERIFICATION
+  UNKNOWN
+}
+
+enum FreshnessScore {
+  FRESH
+  RECENT
+  STALE
+  VERY_STALE
+  UNKNOWN
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+  REVIEW
+}
+
+// ---------------------------------------------------------------------------
+// Changes & History
+// ---------------------------------------------------------------------------
+
+enum ChangeEventType {
+  FEE_INCREASE
+  FEE_DECREASE
+  REWARD_DEVALUATION
+  REWARD_ENHANCEMENT
+  LOUNGE_REDUCTION
+  LOUNGE_ENHANCEMENT
+  FOREX_CHANGE
+  UPI_CHANGE
+  CASHBACK_CHANGE
+  MILESTONE_CHANGE
+  WELCOME_BONUS_CHANGE
+  EXCLUSION_ADDED
+  EXCLUSION_REMOVED
+  TRANSFER_RATIO_CHANGE
+  CARD_LAUNCHED
+  CARD_DISCONTINUED
+  CARD_REOPENED
+  CARD_RELAUNCHED
+  NETWORK_CHANGE
+  COBRAND_CHANGE
+  ELIGIBILITY_CHANGE
+  STATUS_CHANGE
+  INSURANCE_CHANGE
+  OTHER
+}
+
+enum OfferType {
+  BASE_PRODUCT
+  CURRENT_PROMOTION
+  TARGETED_OFFER
+  PREQUALIFIED_OFFER
+  BANK_CHANNEL_OFFER
+  MARKETPLACE_OFFER
+  LIMITED_TIME_OFFER
+}
+
+// ---------------------------------------------------------------------------
+// Claim & Conflict
+// ---------------------------------------------------------------------------
+
+enum ClaimType {
+  FEE
+  REWARD
+  CASHBACK
+  BENEFIT
+  LOUNGE
+  ELIGIBILITY
+  STATUS
+  INSURANCE
+  FOREX
+  UPI
+  FUEL
+  RAILWAY
+  HOTEL
+  TRAVEL
+  WELCOME
+  MILESTONE
+  EXCLUSION
+  TRANSFER_PARTNER
+  OTHER
+}
+
+enum ConflictStatus {
+  DETECTED
+  SOURCE_PRIORITY_CHECK
+  DATE_CHECK
+  HUMAN_REVIEW
+  RESOLVED
+  PUBLISHED
+}
+
+// ---------------------------------------------------------------------------
+// Application & Affiliate
+// ---------------------------------------------------------------------------
+
+enum ApplicationChannel {
+  BANK_WEBSITE
+  BANK_APP
+  BRANCH
+  PARTNER_APP
+  FINTECH_APP
+  MARKETPLACE
+  PREQUALIFIED
+  RELATIONSHIP_MANAGER
+}
+
+enum RankingReason {
+  SPONSORED
+  AFFILIATE
+  EDITORIAL
+  ALGORITHMIC
+}
+
+// ---------------------------------------------------------------------------
+// Employment & Eligibility
+// ---------------------------------------------------------------------------
+
+enum EmploymentType {
+  SALARIED
+  SELF_EMPLOYED
+  BUSINESS
+  PROFESSIONAL
+  STUDENT
+  RETIRED
+  HOMEMAKER
+  DEFENCE
+  GOVERNMENT
+  NRI
+  ANY
+}
+
+// ---------------------------------------------------------------------------
+// Insurance
+// ---------------------------------------------------------------------------
+
+enum InsuranceBenefitType {
+  AIR_ACCIDENT
+  TRAVEL_INSURANCE
+  PURCHASE_PROTECTION
+  LOST_CARD_LIABILITY
+  FRAUD_PROTECTION
+  BAGGAGE
+  PERSONAL_ACCIDENT
+  MEDICAL
+  RENTAL_CAR
+  TRIP_CANCELLATION
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Lounge
+// ---------------------------------------------------------------------------
+
+enum LoungeProgram {
+  PRIORITY_PASS
+  DREAMFOLKS
+  MASTERCARD_LOUNGE
+  VISA_LOUNGE
+  RUPAY_LOUNGE
+  DINERS_CLUB
+  AMEX_LOUNGE
+  ISSUER_SPECIFIC
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Research
+// ---------------------------------------------------------------------------
+
+enum ResearchStatus {
+  DISCOVERED
+  EXTRACTED
+  NORMALIZED
+  SOURCE_ATTACHED
+  AI_CHECKED
+  HUMAN_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum ResearchJobType {
+  ISSUER_RESEARCH
+  PRODUCT_DISCOVERY
+  SOURCE_CHECK
+  FEE_RECHECK
+  BENEFIT_RECHECK
+  LINK_CHECK
+  DUPLICATE_SCAN
+  CHANGE_DETECTION
+  SEO_REFRESH
+  FINTECH_DISCOVERY
+  LEGACY_DISCOVERY
+}
+
+enum ResearchJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  RETRYING
+  CANCELLED
+}
+
+enum IssuerCoverageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PARTIALLY_COVERED
+  FULLY_RESEARCHED
+  NEEDS_REVERIFICATION
+}
+
+// ---------------------------------------------------------------------------
+// Product Exclusion
+// ---------------------------------------------------------------------------
+
+enum ExclusionCategory {
+  DEBIT_CARD
+  PREPAID_CARD
+  WALLET
+  BNPL
+  CREDIT_LINE
+  LOAN
+  PAY_LATER
+  GIFT_CARD
+  STORED_VALUE_CARD
+}
+
+// ---------------------------------------------------------------------------
+// Admin & Audit
+// ---------------------------------------------------------------------------
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VERIFY
+  APPROVE
+  REJECT
+  IMPORT
+  MERGE
+  RESOLVE_CONFLICT
+}
+
+// ---------------------------------------------------------------------------
+// AI
+// ---------------------------------------------------------------------------
+
+enum AITaskType {
+  ARCHITECTURE_REVIEW
+  SOURCE_DISCOVERY
+  WEB_EXTRACTION
+  PDF_EXTRACTION
+  ENTITY_MATCHING
+  DEDUPLICATION
+  SOURCE_CONFLICT
+  CARD_CLASSIFICATION
+  NATURAL_LANGUAGE_SEARCH
+  RECOMMENDATION_EXPLANATION
+  SEO_GENERATION
+  FINAL_QA
+}

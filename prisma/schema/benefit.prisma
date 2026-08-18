@@ -1,0 +1,292 @@
+// CardIntel — Benefit Models
+// Lounge, Travel, Fuel, Railway, Hotel, Forex, Insurance, UPI
+
+// ---------------------------------------------------------------------------
+// LoungeBenefit (Req #18, Addendum #28)
+// ---------------------------------------------------------------------------
+
+model LoungeBenefit {
+  id                    String        @id @default(cuid())
+  cardProductId         String
+  cardProduct           CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  // Domestic
+  domesticVisitsPerYear  Int?
+  domesticVisitsPerQuarter Int?
+  domesticVisitsPerMonth  Int?
+  domesticUnlimited     Boolean       @default(false)
+
+  // International
+  internationalVisitsPerYear Int?
+  internationalVisitsPerQuarter Int?
+  internationalUnlimited Boolean      @default(false)
+
+  // Priority Pass
+  hasPriorityPass       Boolean       @default(false)
+  priorityPassVisits    Int?
+
+  // Guest
+  guestVisitsIncluded   Int?
+  guestVisitFee         Decimal?      @db.Decimal(12, 2)
+
+  // Lounge program
+  loungeProgram         LoungeProgram?
+  additionalVisitFee    Decimal?      @db.Decimal(12, 2)
+
+  // Spend conditions (Addendum #28)
+  spendCondition        String?       // Human-readable
+  previousQuarterSpend  Decimal?      @db.Decimal(12, 2)
+  currentQuarterSpend   Decimal?      @db.Decimal(12, 2)
+  monthlySpendRequired  Decimal?      @db.Decimal(12, 2)
+
+  // Airport list
+  airportList           String[]
+  notes                 String?
+
+  effectiveFrom         DateTime?
+  effectiveTo           DateTime?
+
+  sourceId              String?
+  source                Source?       @relation(fields: [sourceId], references: [id])
+  fieldState            FieldState    @default(UNKNOWN)
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("lounge_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// TravelBenefit (Req #17)
+// ---------------------------------------------------------------------------
+
+model TravelBenefit {
+  id                String        @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  benefitType       String        // "flight_discount", "hotel_discount", "travel_insurance", etc.
+  description       String
+  value             Decimal?      @db.Decimal(12, 2)
+  conditions        String?
+  travelPortal      String?       // e.g. "SmartBuy", "My Rewards"
+
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+
+  sourceId          String?
+  source            Source?       @relation(fields: [sourceId], references: [id])
+  fieldState        FieldState    @default(UNKNOWN)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("travel_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// FuelBenefit (Req #15)
+// ---------------------------------------------------------------------------
+
+model FuelBenefit {
+  id                    String        @id @default(cuid())
+  cardProductId         String
+  cardProduct           CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  fuelSurchargeWaiver   Boolean       @default(false)
+  surchargeWaiverPercent Decimal?     @db.Decimal(5, 2)
+  fuelRewardRate        Decimal?      @db.Decimal(8, 4)
+  fuelBonusRate         Decimal?      @db.Decimal(8, 4)
+
+  // Caps
+  monthlyCap            Decimal?      @db.Decimal(12, 2)
+  transactionMin        Decimal?      @db.Decimal(12, 2)
+  transactionMax        Decimal?      @db.Decimal(12, 2)
+
+  // Eligible networks
+  eligibleFuelNetworks  String[]      // ["IndianOil", "HPCL", "BPCL"]
+  eligibleMCC           String[]
+
+  conditions            String?
+  effectiveFrom         DateTime?
+  effectiveTo           DateTime?
+
+  sourceId              String?
+  source                Source?       @relation(fields: [sourceId], references: [id])
+  fieldState            FieldState    @default(UNKNOWN)
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("fuel_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// RailwayBenefit (Req #16)
+// ---------------------------------------------------------------------------
+
+model RailwayBenefit {
+  id                    String        @id @default(cuid())
+  cardProductId         String
+  cardProduct           CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  isIRCTCCoBrand        Boolean       @default(false)
+  railwayBookingReward  Decimal?      @db.Decimal(8, 4)
+  irctcDiscount         Decimal?      @db.Decimal(5, 2)
+  railwaySurcharge      String?
+  railwayPoints         String?
+  bookingPortalRequired String?       // e.g. "IRCTC only"
+
+  conditions            String?
+  effectiveFrom         DateTime?
+  effectiveTo           DateTime?
+
+  sourceId              String?
+  source                Source?       @relation(fields: [sourceId], references: [id])
+  fieldState            FieldState    @default(UNKNOWN)
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("railway_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// HotelBenefit (Req #19)
+// ---------------------------------------------------------------------------
+
+model HotelBenefit {
+  id                String        @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  hotelBrand        String?       // "Marriott", "Taj", "ITC", etc.
+  hotelStatus       String?       // e.g. "Gold", "Platinum"
+  freeNightsPerYear Int?
+  annualNightValue  Decimal?      @db.Decimal(12, 2)
+  hotelPoints       String?
+  statusUpgrade     String?
+  discount          Decimal?      @db.Decimal(5, 2)
+  minimumSpend      Decimal?      @db.Decimal(12, 2)
+
+  conditions        String?
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+
+  sourceId          String?
+  source            Source?       @relation(fields: [sourceId], references: [id])
+  fieldState        FieldState    @default(UNKNOWN)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("hotel_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// ForexBenefit (Req #20)
+// ---------------------------------------------------------------------------
+
+model ForexBenefit {
+  id                      String        @id @default(cuid())
+  cardProductId           String
+  cardProduct             CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  forexMarkup             Decimal?      @db.Decimal(5, 4) // e.g. 0.0350 = 3.5%
+  isZeroForex             Boolean       @default(false)
+  dccFee                  Decimal?      @db.Decimal(5, 4)
+  internationalRewardRate Decimal?      @db.Decimal(8, 4)
+  internationalLounge     Boolean       @default(false)
+  internationalInsurance  Boolean       @default(false)
+  exclusions              String[]
+
+  conditions              String?
+  effectiveFrom           DateTime?
+  effectiveTo             DateTime?
+
+  sourceId                String?
+  source                  Source?       @relation(fields: [sourceId], references: [id])
+  fieldState              FieldState    @default(UNKNOWN)
+
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("forex_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// InsuranceBenefit (Req #21)
+// ---------------------------------------------------------------------------
+
+model InsuranceBenefit {
+  id                  String              @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct         @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  benefitType         InsuranceBenefitType
+  coverageAmount      Decimal?            @db.Decimal(12, 2)
+  description         String
+  conditions          String?
+  claimProcess        String?
+
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  sourceId            String?
+  source              Source?             @relation(fields: [sourceId], references: [id])
+  fieldState          FieldState          @default(UNKNOWN)
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([cardProductId])
+  @@map("insurance_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// UPIBenefit (Req #14, Addendum #3)
+// ---------------------------------------------------------------------------
+
+model UPIBenefit {
+  id                      String        @id @default(cuid())
+  cardProductId           String
+  cardProduct             CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  upiEnabled              Boolean       @default(false)
+  upiNetwork              NetworkType?  // Typically RUPAY
+  rupayEnabled            Boolean       @default(false)
+  upiLinkSupported        Boolean       @default(false)
+  upiScan                 Boolean       @default(false)
+  upiOnline               Boolean       @default(false)
+  upiPeerToMerchant       Boolean       @default(false)
+
+  // UPI rewards
+  upiRewardRate           Decimal?      @db.Decimal(8, 4)
+  upiCashbackRate         Decimal?      @db.Decimal(5, 2)
+  upiMonthlyCap           Decimal?      @db.Decimal(12, 2)
+  upiTransactionCap       Decimal?      @db.Decimal(12, 2)
+
+  // Exclusions
+  upiExclusions           String[]
+  restrictedCategories    String[]
+
+  conditions              String?
+  effectiveFrom           DateTime?
+  effectiveTo             DateTime?
+
+  sourceId                String?
+  source                  Source?       @relation(fields: [sourceId], references: [id])
+  fieldState              FieldState    @default(UNKNOWN)
+
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("upi_benefits")
+}

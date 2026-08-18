@@ -1,0 +1,289 @@
+// CardIntel — Reward, Cashback & Redemption Models
+// Rule engine architecture (Addendum #24)
+
+// ---------------------------------------------------------------------------
+// RewardProgram — Program definition
+// ---------------------------------------------------------------------------
+
+model RewardProgram {
+  id              String             @id @default(cuid())
+  cardProductId   String
+  cardProduct     CardProduct        @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+  name            String             // e.g. "HDFC Reward Points", "SBI Rewards"
+  currencyType    RewardCurrencyType
+  currencyName    String?            // e.g. "Reward Points", "CashPoints"
+
+  // Base earning rate
+  baseEarningRate   Decimal?         @db.Decimal(8, 4) // points per ₹ spent
+  baseSpendUnit     Decimal?         @db.Decimal(12, 2) // e.g. 150.00 (1 point per ₹150)
+
+  // Expiry
+  pointsExpiry      String?          // e.g. "2 years from earning", "3 years"
+  neverExpires      Boolean          @default(false)
+
+  sourceId        String?
+  source          Source?            @relation(fields: [sourceId], references: [id])
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  rewardRules     RewardRule[]
+  valuations      RewardValuation[]
+
+  @@index([cardProductId])
+  @@map("reward_programs")
+}
+
+// ---------------------------------------------------------------------------
+// RewardRule — Rule engine: IF conditions THEN reward (Addendum #24)
+// ---------------------------------------------------------------------------
+
+model RewardRule {
+  id                String          @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct     @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+  rewardProgramId   String?
+  rewardProgram     RewardProgram?  @relation(fields: [rewardProgramId], references: [id], onDelete: Cascade)
+
+  // Rule definition
+  name              String?         // Human-readable rule name
+  spendCategory     SpendCategory?
+  merchantName      String?         // Specific merchant (e.g. "Amazon")
+  mccCodes          String[]        // MCC codes if applicable
+  channelOnline     Boolean?        // null = both, true = online only, false = offline only
+
+  // Earning
+  earningRate       Decimal         @db.Decimal(8, 4) // Points/cashback per unit
+  earningUnit       Decimal?        @db.Decimal(12, 2) // per ₹X spent
+  multiplier        Decimal?        @db.Decimal(6, 2)  // e.g. 5x on travel
+
+  // Conditions
+  minimumTransaction  Decimal?      @db.Decimal(12, 2)
+  maximumTransaction  Decimal?      @db.Decimal(12, 2)
+  minimumMonthlySpend Decimal?      @db.Decimal(12, 2)
+
+  // Caps
+  monthlyCap        Decimal?        @db.Decimal(12, 2) // max reward per month
+  quarterlyCap      Decimal?        @db.Decimal(12, 2)
+  annualCap         Decimal?        @db.Decimal(12, 2)
+
+  // Effective dates
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+
+  // Exclusions
+  exclusions        String[]        // List of excluded categories/merchants
+
+  // Rule priority (higher = evaluated first)
+  priority          Int             @default(0)
+
+  // Source provenance
+  sourceId          String?
+  source            Source?         @relation(fields: [sourceId], references: [id])
+  fieldState        FieldState      @default(UNKNOWN)
+
+  // Rule versioning (User req #10)
+  ruleVersion       String?         @default("1.0")
+
+  metadata          Json?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([cardProductId])
+  @@index([spendCategory])
+  @@index([cardProductId, spendCategory])
+  @@map("reward_rules")
+}
+
+// ---------------------------------------------------------------------------
+// RewardValuation — Multiple valuation models per point type (Addendum #21)
+// ---------------------------------------------------------------------------
+
+model RewardValuation {
+  id                  String         @id @default(cuid())
+  rewardProgramId     String
+  rewardProgram       RewardProgram  @relation(fields: [rewardProgramId], references: [id], onDelete: Cascade)
+
+  valuationMethod     String         // "voucher", "statement_credit", "travel", "transfer", "analyst"
+  valuePerPoint       Decimal        @db.Decimal(8, 4) // e.g. 0.2500 for ₹0.25/point
+  currency            String         @default("INR")
+  description         String?
+  isDefault           Boolean        @default(false)
+
+  sourceId            String?
+  source              Source?        @relation(fields: [sourceId], references: [id])
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([rewardProgramId])
+  @@map("reward_valuations")
+}
+
+// ---------------------------------------------------------------------------
+// CashbackRule — Category-specific cashback (Req #13)
+// ---------------------------------------------------------------------------
+
+model CashbackRule {
+  id                  String        @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  spendCategory       SpendCategory?
+  merchantName        String?
+  mccCodes            String[]
+
+  // Cashback
+  cashbackPercentage  Decimal       @db.Decimal(5, 2) // e.g. 5.00 for 5%
+  isUpTo              Boolean       @default(false)   // "up to 5%" vs "5%"
+  minimumTransaction  Decimal?      @db.Decimal(12, 2)
+  maximumTransaction  Decimal?      @db.Decimal(12, 2)
+
+  // Caps
+  monthlyCap          Decimal?      @db.Decimal(12, 2)
+  quarterlyCap        Decimal?      @db.Decimal(12, 2)
+  annualCap           Decimal?      @db.Decimal(12, 2)
+
+  // Conditions
+  channelOnline       Boolean?
+  paymentMode         String?       // e.g. "UPI", "contactless"
+  exclusions          String[]
+
+  // Effective dates
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  // Source
+  sourceId            String?
+  source              Source?       @relation(fields: [sourceId], references: [id])
+  fieldState          FieldState    @default(UNKNOWN)
+
+  metadata            Json?
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@index([spendCategory])
+  @@map("cashback_rules")
+}
+
+// ---------------------------------------------------------------------------
+// MilestoneBenefit — Spend-based milestone rewards
+// ---------------------------------------------------------------------------
+
+model MilestoneBenefit {
+  id                String        @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  name              String
+  spendThreshold    Decimal       @db.Decimal(12, 2)
+  spendPeriod       String        // "annual", "quarterly", "monthly"
+  benefitDescription String
+  benefitValue      Decimal?      @db.Decimal(12, 2)
+  benefitType       String?       // "voucher", "points", "cashback", "upgrade"
+
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+
+  sourceId          String?
+  source            Source?       @relation(fields: [sourceId], references: [id])
+  fieldState        FieldState    @default(UNKNOWN)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("milestone_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// WelcomeBenefit
+// ---------------------------------------------------------------------------
+
+model WelcomeBenefit {
+  id                  String        @id @default(cuid())
+  cardProductId       String
+  cardProduct         CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  description         String
+  benefitValue        Decimal?      @db.Decimal(12, 2)
+  benefitType         String?       // "points", "voucher", "cashback", "fee_reversal"
+  conditions          String?       // e.g. "on first ₹X spend"
+  spendRequirement    Decimal?      @db.Decimal(12, 2)
+  timeLimit           String?       // e.g. "30 days", "60 days"
+
+  isCurrentlyAvailable Boolean      @default(true)
+
+  effectiveFrom       DateTime?
+  effectiveTo         DateTime?
+
+  sourceId            String?
+  source              Source?       @relation(fields: [sourceId], references: [id])
+  fieldState          FieldState    @default(UNKNOWN)
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("welcome_benefits")
+}
+
+// ---------------------------------------------------------------------------
+// RedemptionOption
+// ---------------------------------------------------------------------------
+
+model RedemptionOption {
+  id                String          @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct     @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  redemptionType    RedemptionType
+  name              String
+  description       String?
+  valuePerPoint     Decimal?        @db.Decimal(8, 4)
+  minimumPoints     Int?
+  conversionRatio   String?         // e.g. "1000 points = ₹250"
+
+  sourceId          String?
+  source            Source?         @relation(fields: [sourceId], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([cardProductId])
+  @@map("redemption_options")
+}
+
+// ---------------------------------------------------------------------------
+// TransferPartner — Airline/hotel loyalty programs
+// ---------------------------------------------------------------------------
+
+model TransferPartner {
+  id                String        @id @default(cuid())
+  cardProductId     String
+  cardProduct       CardProduct   @relation(fields: [cardProductId], references: [id], onDelete: Cascade)
+
+  partnerName       String        // e.g. "Singapore Airlines KrisFlyer"
+  partnerType       String        // "airline", "hotel"
+  partnerProgram    String?
+  transferRatio     String        // e.g. "2:1", "1:1"
+  transferRatioFrom Int?          // e.g. 2 (card points)
+  transferRatioTo   Int?          // e.g. 1 (partner miles)
+  minimumTransfer   Int?
+  transferFee       Decimal?      @db.Decimal(12, 2)
+
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+
+  sourceId          String?
+  source            Source?       @relation(fields: [sourceId], references: [id])
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([cardProductId])
+  @@map("transfer_partners")
+}
