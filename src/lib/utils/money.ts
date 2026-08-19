@@ -6,7 +6,10 @@
  * This module provides safe arithmetic, formatting, and comparison.
  */
 
-import { Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
+
+export const Decimal = Prisma.Decimal;
+export type Decimal = Prisma.Decimal;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -29,8 +32,11 @@ export interface Money {
 // Construction
 // ---------------------------------------------------------------------------
 
-export function money(amount: number | string | Decimal, currency = DEFAULT_CURRENCY): Money {
-  const decimal = new Decimal(amount);
+export function money(amount: number | string | Decimal | Money, currency = DEFAULT_CURRENCY): Money {
+  if (typeof amount === "object" && amount !== null && "amount" in amount) {
+    return amount as Money;
+  }
+  const decimal = new Decimal(amount.toString());
   return {
     amount: decimal.toFixed(2),
     currency,
@@ -43,6 +49,16 @@ export function moneyFromMinor(amountMinor: bigint | number, currency = DEFAULT_
     amount: decimal.toFixed(2),
     currency,
   };
+}
+
+export function toAmountNumber(m: Money | number | string | Decimal | null | undefined): number {
+  if (m === null || m === undefined) return 0;
+  if (typeof m === "number") return isNaN(m) ? 0 : m;
+  if (typeof m === "string") return parseFloat(m) || 0;
+  if (typeof m === "object" && "amount" in m) {
+    return parseFloat(m.amount) || 0;
+  }
+  return parseFloat(m.toString()) || 0;
 }
 
 export function zeroMoney(currency = DEFAULT_CURRENCY): Money {
@@ -66,12 +82,12 @@ export function subtractMoney(a: Money, b: Money): Money {
 }
 
 export function multiplyMoney(m: Money, factor: number | string | Decimal): Money {
-  const result = toDecimal(m).times(new Decimal(factor));
+  const result = toDecimal(m).times(new Decimal(factor.toString()));
   return { amount: result.toFixed(2), currency: m.currency };
 }
 
 export function divideMoney(m: Money, divisor: number | string | Decimal): Money {
-  const d = new Decimal(divisor);
+  const d = new Decimal(divisor.toString());
   if (d.isZero()) throw new Error("Cannot divide money by zero");
   const result = toDecimal(m).dividedBy(d);
   return { amount: result.toFixed(2), currency: m.currency };
@@ -198,7 +214,7 @@ export function formatFee(amount: Money, gstApplicable: boolean): string {
  * Calculate fee inclusive of GST.
  */
 export function feeWithGST(amount: Money, gstRate: number | string | Decimal): Money {
-  const rate = new Decimal(gstRate);
+  const rate = new Decimal(gstRate.toString());
   const gst = toDecimal(amount).times(rate).dividedBy(100);
   return addMoney(amount, { amount: gst.toFixed(2), currency: amount.currency });
 }
@@ -246,7 +262,7 @@ export function calculateRewardValue(
   valuePerPoint: string | number,
   currency = DEFAULT_CURRENCY,
 ): RewardValuation {
-  const vpp = new Decimal(valuePerPoint);
+  const vpp = new Decimal(valuePerPoint.toString());
   const total = vpp.times(points);
   return {
     rewardPoints: points,
